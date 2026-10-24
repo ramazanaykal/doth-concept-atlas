@@ -10,12 +10,11 @@ $('#fit-viewer').onclick=fitViewer;$('#actual-viewer').onclick=()=>{$('#full-ima
 $('#close-viewer').onclick=()=>$('#viewer').close();
 $('#viewer').onclick=e=>{if(e.target===$('#viewer'))$('#viewer').close();};
 $('#route-copy').textContent=detail.route;$('#materials-copy').textContent=detail.materials;$('#story-boundary').textContent=detail.storyBoundary;
-$('#mosaic').innerHTML=['T01','T16','T43'].map(id=>{const s=book.shots.find(s=>s.id===id);return '<button data-cover="'+id+'" aria-label="'+esc(s.title)+' konseptini aç"><img src="'+s.file+'" alt="'+esc(s.title)+'"><span>'+esc(s.title)+'</span></button>';}).join('');
-document.querySelectorAll('[data-cover]').forEach(b=>b.onclick=()=>imageDialog(book.shots.find(s=>s.id===b.dataset.cover)));
-$('#drawing-tabs').innerHTML=book.sheets.map((s,i)=>'<button data-drawing="'+i+'" aria-pressed="'+(i===0)+'">'+esc(s.title)+'</button>').join('');
+$('#cover-open').onclick=()=>imageDialog(book.shots.find(s=>s.id==='T01'));
+$('#drawing-tabs').innerHTML=book.sheets.map((s,i)=>'<button data-drawing="'+i+'" aria-pressed="'+(i===0)+'"><span class="choice-number">0'+(i+1)+'</span><span>'+esc(s.title)+'</span><span class="choice-action" aria-hidden="true"></span></button>').join('');
 document.querySelectorAll('[data-drawing]').forEach(b=>b.onclick=()=>{drawingIndex=Number(b.dataset.drawing);renderDrawing();});
 function renderDrawing(){const s=book.sheets[drawingIndex];$('#drawing-image').src=s.png;$('#drawing-image').alt=s.title;$('#drawing-title').textContent=s.title;$('#drawing-summary').textContent=s.summary;$('#drawing-svg').href=s.file;$('#open-drawing').onclick=()=>imageDialog({file:s.png,title:s.title,id:s.id});document.querySelectorAll('[data-drawing]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.drawing)===drawingIndex)));}
-$('#stages').innerHTML=plan.mainRoute.map(s=>'<button data-stage="'+s.id+'" aria-pressed="'+(s.id===1)+'"><span>0'+s.id+' / '+s.lengthMeters.toLocaleString('tr-TR')+'m</span>'+esc(s.name)+'</button>').join('');
+$('#stages').innerHTML=plan.mainRoute.map(s=>{const shot=book.shots.find(p=>p.stage===s.id&&p.category==='mimari');const count=book.shots.filter(p=>p.stage===s.id).length;return '<button data-stage="'+s.id+'" aria-pressed="'+(s.id===1)+'"><span class="stage-photo"><img src="'+shot.file+'" alt="" loading="lazy"><span class="stage-no">0'+s.id+'</span></span><span class="stage-card-copy"><strong>'+esc(s.name)+'</strong><span class="stage-card-meta">'+count+' görsel · '+s.lengthMeters.toLocaleString('tr-TR')+' m taslak</span><span class="stage-card-action" aria-hidden="true"></span></span></button>';}).join('');
 document.querySelectorAll('[data-stage]').forEach(b=>b.onclick=()=>selectStage(Number(b.dataset.stage)));
 $('#filters').innerHTML=['tümü','mimari','oynanış','mekanik'].map(k=>'<button data-kind="'+k+'" aria-pressed="'+(k==='tümü')+'">'+k[0].toUpperCase()+k.slice(1)+'</button>').join('');
 document.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{activeKind=b.dataset.kind;activeIndex=0;renderAtlas();});
@@ -24,9 +23,10 @@ function filtered(){return book.shots.filter(s=>s.stage===activeStage&&s.file&&(
 function renderAtlas(){
  if(!filtered().length){activeKind='tümü';activeIndex=0;}
  const p=detail.profiles.find(x=>x.id===activeStage);
+ $('#active-stage-label').textContent='0'+activeStage+' / '+plan.mainRoute[activeStage-1].name;
  $('#stage-copy').innerHTML='<div class="stage-intro"><span class="eyebrow">0'+activeStage+' / '+esc(p.hook)+'</span><h3>'+esc(plan.mainRoute[activeStage-1].name)+'</h3><p>'+esc(p.shape)+'</p></div><div><span class="label">OYUNCU NE YAPAR?</span><p>'+esc(p.action)+'</p></div><div><span class="label">MEKÂNIN İŞLEVİ</span><p>'+esc(p.meaning)+'</p></div><div><span class="label">GÖRSEL / KORKU FARKI</span><p>'+esc(p.variation)+'</p></div><div><span class="label">DÖNÜŞ VE HATA</span><p>'+esc(p.failure)+'</p></div>';
  document.querySelectorAll('[data-stage]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.stage)===activeStage)));
- document.querySelectorAll('[data-kind]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.kind===activeKind));b.disabled=b.dataset.kind!=='tümü'&&!book.shots.some(s=>s.stage===activeStage&&s.file&&s.category===b.dataset.kind);});
+ document.querySelectorAll('[data-kind]').forEach(b=>{b.setAttribute('aria-pressed',String(b.dataset.kind===activeKind));const amount=book.shots.filter(s=>s.stage===activeStage&&(b.dataset.kind==='tümü'||s.category===b.dataset.kind)).length;b.innerHTML=esc(b.dataset.kind[0].toUpperCase()+b.dataset.kind.slice(1))+'<span class="filter-count">'+amount+'</span>';b.disabled=b.dataset.kind!=='tümü'&&!book.shots.some(s=>s.stage===activeStage&&s.file&&s.category===b.dataset.kind);});
  const list=filtered();activeIndex=(activeIndex+list.length)%list.length;
  $('#thumbs').innerHTML=list.map((s,i)=>'<button data-thumb="'+i+'" aria-current="'+(i===activeIndex)+'" aria-label="'+esc(s.title)+'"><img loading="lazy" src="'+esc(s.file)+'" alt=""><span>'+s.id+' / '+esc(s.title)+'</span></button>').join('');
  document.querySelectorAll('[data-thumb]').forEach(b=>b.onclick=()=>{activeIndex=Number(b.dataset.thumb);renderShot();});
@@ -40,7 +40,7 @@ function renderShot(){
 }
 function step(n){const list=filtered();activeIndex=(activeIndex+n+list.length)%list.length;renderShot();}
 $('#prev').onclick=()=>step(-1);$('#next').onclick=()=>step(1);
-document.addEventListener('keydown',e=>{if($('#viewer').open)return;if(['INPUT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='ArrowRight'){step(1);}if(e.key==='ArrowLeft'){step(-1);}});
+document.addEventListener('keydown',e=>{if($('#viewer').open)return;if(e.target.closest('#stages,#filters,#drawing-tabs,#mechanic-tabs'))return;if(['INPUT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='ArrowRight'){step(1);}if(e.key==='ArrowLeft'){step(-1);}});
 $('#plan-stages').innerHTML=plan.mainRoute.map(s=>'<div class="plan-row"><span>0'+s.id+'</span><p>'+esc(s.name)+'</p><small>'+s.lengthMeters.toLocaleString('tr-TR')+'m</small></div>').join('');
 const svgStart=(vb,lab)=>'<svg xmlns="http://www.w3.org/2000/svg" viewBox="'+vb+'" role="img" aria-label="'+esc(lab)+'">';
 function drawMap(){
@@ -77,7 +77,7 @@ const mechNotes=[
 "Aynı köşe ve aynı kaya omzu. Değişen tebeşirin yönü. Dönüş bağı uzun yolu kısa bağa çevirir; mimari ışınlanmaz.",
 "Aday etkileşim. Işığı sabit bırak, kapağı bitişik düz desteğe iki elle kaydır, sonra feneri al. Kuyunun hikâyesel sonucu seçilmedi."
 ];
-$('#mechanic-tabs').innerHTML=plan.mainRoute.filter(r=>book.shots.some(s=>s.stage===r.id&&s.file&&s.category==='mekanik')).map(s=>'<button data-mechanic="'+s.id+'" aria-pressed="'+(s.id===1)+'">'+s.id+' · '+esc(s.name)+'</button>').join('');
+$('#mechanic-tabs').innerHTML=plan.mainRoute.filter(r=>book.shots.some(s=>s.stage===r.id&&s.file&&s.category==='mekanik')).map(s=>'<button data-mechanic="'+s.id+'" aria-pressed="'+(s.id===1)+'"><span class="choice-number">0'+s.id+'</span><span>'+esc(s.name)+'</span><span class="choice-action" aria-hidden="true"></span></button>').join('');
 document.querySelectorAll('[data-mechanic]').forEach(b=>b.onclick=()=>{mechanicStage=Number(b.dataset.mechanic);renderMechanics();});
 function renderMechanics(){
  const list=book.shots.filter(s=>s.stage===mechanicStage&&s.category==='mekanik'&&s.file);
@@ -103,3 +103,12 @@ $('#production').innerHTML=detail.production.map(p=>'<article><h3>'+esc(p.mechan
 $('#gates').innerHTML=detail.gates.map(t=>'<li>'+esc(t)+'</li>').join('');
 $('#history').innerHTML=detail.history.map(h=>'<article><h3>'+esc(h.name)+'</h3><p>'+esc(h.supports)+'</p><p>'+esc(h.caution)+'</p><a href="'+h.url+'" target="_blank" rel="noreferrer">Birincil kaynak ↗</a></article>').join('');
 renderDrawing();renderAtlas();drawMap();$('#long-section').innerHTML='<a href="D01.svg"><img src="D01.svg" alt="Bütün hattın kot ve su kesiti" style="width:100%;height:auto;display:block"></a>';renderMechanics();drawWater();
+
+for(const group of ['#stages','#filters','#drawing-tabs','#mechanic-tabs']){
+ $(group).addEventListener('keydown',e=>{
+  if(!['ArrowRight','ArrowLeft','Home','End'].includes(e.key)||!e.target.matches('button'))return;
+  const buttons=[...$(group).querySelectorAll('button:not(:disabled)')];let index=buttons.indexOf(e.target);
+  if(e.key==='Home')index=0;else if(e.key==='End')index=buttons.length-1;else index=(index+(e.key==='ArrowRight'?1:buttons.length-1))%buttons.length;
+  e.preventDefault();e.stopPropagation();buttons[index].focus();buttons[index].click();
+ });
+}
